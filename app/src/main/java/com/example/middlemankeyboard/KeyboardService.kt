@@ -1,6 +1,8 @@
 package com.example.middlemankeyboard
 
 import android.inputmethodservice.InputMethodService
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.TypedValue
 import android.view.View
 import android.view.inputmethod.ExtractedTextRequest
@@ -9,14 +11,64 @@ import android.widget.EditText
 import android.widget.LinearLayout
 
 
+abstract class TextTransformer {
+    public var rawText: String = ""
+    public var transformedText: String = ""
+
+    public fun reset(): String {
+        return transform("")
+    }
+
+    public fun addText(text: String, index: Int? = null): String {
+        if (index == null) {
+            rawText += text
+        } else {
+            rawText = rawText.substring(0, index) + text + rawText.substring(index)
+        }
+        transformedText = transform(rawText)
+        return transformedText
+    }
+
+    public fun removeText(length: Int, index: Int? = null): String {
+        if (index == null) {
+            rawText = rawText.dropLast(length)
+        } else {
+            rawText = rawText.substring(0, index) + rawText.substring(index + length)
+        }
+        return transform(rawText)
+    }
+
+    public fun transform(newRawText: String): String {
+        val oldRawText = rawText
+        rawText = newRawText
+        transformedText = transformText(newRawText, oldRawText)
+        return transformedText
+    }
+
+    abstract fun transformText(newRawText: String, oldRawText: String? = null): String
+}
+
+
+class sPOngEbObTRaNSfOrMer : TextTransformer() {
+    override fun transformText(newRawText: String, oldRawText: String?): String {
+        return newRawText.map { if (Math.random() < 0.4) it.uppercaseChar() else it }.joinToString("")
+    }
+}
+
+
 class KeyboardService : InputMethodService() {
     // Define a mapping of keys to rows
+    private val transformer = sPOngEbObTRaNSfOrMer()
 
     private val emojis = "👍😎💩"
     private val lock = "\uD83D\uDD12"
+    private val pickTransformerLayout = arrayOf(
+        arrayOf("sPOngEbObTRaNSfOrMer", "normal"),
+    )
+
     private val abcLayout = arrayOf(
         arrayOf("#", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", " ⌫ "),
-        arrayOf("@", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", ":)"),
+        arrayOf("@", "q", "w", "e", "r", "t", "y", "u", "i", "o", "p", ),
         arrayOf(lock, "a", "s", "d", "f", "g", "h", "j", "k", "l", "'", " ↵"),
         arrayOf("  ⇧ ", "z", "x", "c", "v", "b", "n", "m", ",", ".", "?", "!" ),
         arrayOf("123%","(", "                  ",  ")",  emojis)
@@ -70,8 +122,6 @@ class KeyboardService : InputMethodService() {
 
     private var textArea: EditText? = null
 
-    private var rawText: String = ""
-
 
     override fun onCreateInputView(): View {
         // Initialize the keyboard layout
@@ -96,8 +146,21 @@ class KeyboardService : InputMethodService() {
         // get the text area from the layout, id is typed_text_area
         // Find the EditText within the inflated layout
         textArea = baseLayout.findViewById(R.id.typed_text_area) as EditText
+
+        // set a change handler on the text area which will set the input connection text
+        textArea?.addTextChangedListener(object : TextWatcher {
+            override fun afterTextChanged(s: Editable) {
+                setText(transformer.transform(s.toString()))
+            }
+            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
+                // prevent any edits
+            }
+            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
+                // Do nothing
+            }
+        })
         initializeTextArea()
-        syncTextArea()
+
 
         keyboard.forEach { row ->
             val rowLayout = LinearLayout(this)
@@ -161,64 +224,88 @@ class KeyboardService : InputMethodService() {
 
 
     private fun inputText(text: String) {
-        val inputConnection = currentInputConnection
-//        inputConnection?.commitText(text, 1)
-        rawText += text
-        syncTextArea()
-        if (nextKeyboard != null) {
-            switchKeyboard(nextKeyboard!!)
+        if (!cursorAtEnd()){
+            return
         }
+        val inputConnection = currentInputConnection
+        val selectedText = inputConnection?.getSelectedText(0)
+        if (selectedText.isNullOrEmpty()) {
+            // add text directly to end of text area do not use transformer
+            textArea?.setText(textArea?.text.toString() + text)
+            textArea?.setSelection(textArea?.text.toString().length)
+
+
+            if (nextKeyboard != null) {
+                switchKeyboard(nextKeyboard!!)
+            }
+        }else{
+            // no support yet for deleting selected text
+        }
+
     }
 
     private fun handleBackspace() {
+        if (!cursorAtEnd()){
+            return
+        }
         val inputConnection = currentInputConnection
         val selectedText = inputConnection?.getSelectedText(0)
 
         if (selectedText.isNullOrEmpty()) {
-            // No text is selected, so delete the character before the cursor
-//            inputConnection?.deleteSurroundingText(1, 0)
-            rawText = rawText.dropLast(1)
-            syncTextArea()
+            // remove last character from text area do not use transformer
+            val text = textArea?.text.toString()
+            textArea?.setText(text.substring(0, text.length - 1))
+            textArea?.setSelection(textArea?.text.toString().length)
         } else {
-            // Text is selected, so delete the selection
-//            inputConnection?.commitText("", 1)
-            rawText = ""
-            syncTextArea()
+            // no support yet for deleting selected text
         }
     }
 
     private fun clearText() {
+        if (!cursorAtEnd()){
+            return
+        }
         val inputConnection = currentInputConnection
-//        inputConnection?.deleteSurroundingText(100, 0)
-        rawText = ""
-        syncTextArea()
+        val selectedText = inputConnection?.getSelectedText(0)
+        if (selectedText.isNullOrEmpty()) {
+            textArea?.setText("")
+            textArea?.setSelection(textArea?.text.toString().length)
+        } else {
+            // no support yet for deleting selected text
+        }
     }
 
     private fun initializeTextArea() {
+        val initialRawText = getText()
+        textArea?.setText(initialRawText)
+        textArea?.setSelection(textArea?.text.toString().length)
+    }
+
+    private fun getText(): String {
         val inputConnection = currentInputConnection
         val request = ExtractedTextRequest()
         val extractedText = inputConnection?.getExtractedText(request, 0)
-        rawText = extractedText?.text.toString()
+        return extractedText?.text.toString()
     }
 
-    private fun syncTextArea() {
+    private fun setText(text: String) {
         val inputConnection = currentInputConnection
-        val text = transformText(rawText)
-        textArea?.setText(rawText)
-        // set the full text in the input connection to the transformed text, overwriting the original text
         inputConnection?.setComposingText(text, 1)
     }
 
-    private fun transformText(text: String): String {
-        // replace with randomly capitalized text
-        val lowercased = text.toLowerCase()
-        val chars = lowercased.toCharArray()
-        for (i in chars.indices) {
-            if (Math.random() < 0.5) {
-                chars[i] = chars[i].toUpperCase()
-            }
+    private fun cursorAtEnd(): Boolean {
+        val inputConnection = currentInputConnection
+        val request = ExtractedTextRequest()
+        val extractedText = inputConnection?.getExtractedText(request, 0)
+        // get true if cursor is at end of text AND there is no selected text
+        val atEnd = extractedText?.selectionStart == extractedText?.selectionEnd && extractedText?.selectionStart == extractedText?.text.toString().length
+
+        if (!atEnd){
+            // move cursor to end
+            inputConnection?.setSelection(extractedText?.text.toString().length, extractedText?.text.toString().length)
         }
-        return String(chars)
+        return atEnd
     }
+
 
 }
