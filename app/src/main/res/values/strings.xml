@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">BasicKeyboard</string>
-    <string name="service_label">Basic Keyboard</string>
-    <string name="subtype_en_US">Basic Keyboard</string>
+    <string name="app_name">MiddlemanKeyboard</string>
+    <string name="service_label">Middleman Keyboard</string>
+    <string name="subtype_en_US">Middleman Keyboard</string>
 </resources>

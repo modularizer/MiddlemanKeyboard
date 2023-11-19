@@ -1,9 +1,11 @@
-package com.example.basickeyboard
+package com.example.middlemankeyboard
 
 import android.inputmethodservice.InputMethodService
 import android.util.TypedValue
 import android.view.View
+import android.view.inputmethod.ExtractedTextRequest
 import android.widget.Button
+import android.widget.EditText
 import android.widget.LinearLayout
 
 
@@ -66,6 +68,8 @@ class KeyboardService : InputMethodService() {
     private var currentKeyboard = keyboards[currentKeyboardName]!!
     private var nextKeyboard: String? = null
 
+    private var textArea: EditText? = null
+
 
     override fun onCreateInputView(): View {
         // Initialize the keyboard layout
@@ -87,6 +91,11 @@ class KeyboardService : InputMethodService() {
 
     private fun makeKeyboardLayout(keyboard: Array<Array<String>>): LinearLayout {
         val baseLayout = layoutInflater.inflate(R.layout.keyboard_layout, null) as LinearLayout
+        // get the text area from the layout, id is typed_text_area
+        // Find the EditText within the inflated layout
+        textArea = baseLayout.findViewById(R.id.typed_text_area) as EditText
+        syncTextArea()
+
         keyboard.forEach { row ->
             val rowLayout = LinearLayout(this)
             rowLayout.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -151,6 +160,7 @@ class KeyboardService : InputMethodService() {
     private fun inputText(text: String) {
         val inputConnection = currentInputConnection
         inputConnection?.commitText(text, 1)
+        syncTextArea()
         if (nextKeyboard != null) {
             switchKeyboard(nextKeyboard!!)
         }
@@ -163,15 +173,24 @@ class KeyboardService : InputMethodService() {
         if (selectedText.isNullOrEmpty()) {
             // No text is selected, so delete the character before the cursor
             inputConnection?.deleteSurroundingText(1, 0)
+            syncTextArea()
         } else {
             // Text is selected, so delete the selection
             inputConnection?.commitText("", 1)
+            syncTextArea()
         }
     }
 
     private fun clearText() {
         val inputConnection = currentInputConnection
         inputConnection?.deleteSurroundingText(100, 0)
+        syncTextArea()
+    }
+
+    private fun syncTextArea() {
+        val inputConnection = currentInputConnection
+        val text = inputConnection?.getExtractedText(ExtractedTextRequest(), 100)?.text
+        textArea?.setText(text)
     }
 
 }

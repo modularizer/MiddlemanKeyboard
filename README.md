@@ -1,16 +1,15 @@
-# Basic Keyboard
+# Middleman Keyboard
 
-Welcome to the Basic Keyboard project!
-Built on top of [HelloWorldKeyboard](https://github.com/modularizer/helloworldkeyboard), basic keyboard
-is a bare-bones keyboard with QWERTY layout and minimalist functionality, meant as a starting point for
-first-time Android developers interested in exploring custom keyboard development.
+Welcome to the Middleman Keyboard project!
+Built on top of [BasicKeyboard](https://github.com/modularizer/basickeyboard) which is built from [HelloWorldKeyboard](https://github.com/modularizer/helloworldkeyboard), middleman keyboard
+allows you to take the text you type and send it to a server to be processed and then send the result back to the keyboard to be typed out.
 
 <img src="./images/basic.gif" height="300"/>
 
 ## Getting Started
 
 These instructions will guide you through forking the project, making it your own, and setting up a development environment for testing and further development.
-Most of the source code is in [KeyboardService.kt](./app/src/main/java/com/example/basickeyboard/KeyboardService.kt).
+Most of the source code is in [KeyboardService.kt](./app/src/main/java/com/example/middlemankeyboard/KeyboardService.kt).
 
 ### Learn with ChatGPT
 Use this custom GPT trained on this repo to learn more about the project and how to make your own keyboard!
@@ -28,8 +27,8 @@ Before you start, ensure you have Android Studio installed, the official IDE for
 ### Setting Up Your Project from a Public Template
 
 1. **Create Your Own Copy of the Repository**:
-    - Navigate to the BasicKeyboard project at `https://github.com/modularizer/basickeyboard`.
-    - Locate the `Use this template` button near the top of the page and click on it to generate a new repository in your GitHub account using BasicKeyboard as a template.
+    - Navigate to the MiddlemanKeyboard project at `https://github.com/modularizer/middlemankeyboard`.
+    - Locate the `Use this template` button near the top of the page and click on it to generate a new repository in your GitHub account using MiddlemanKeyboard as a template.
 
 2. **Set Up Your New Repository**:
     - Go to your GitHub profile to find the newly created repository.
@@ -50,18 +49,18 @@ Before you start, ensure you have Android Studio installed, the official IDE for
    - Select a device definition that resembles a common phone (e.g., Pixel 4) and choose a system image (preferably the latest available version of Android).
    - Follow the prompts to create the emulator. Once created, it will appear in your list of available devices.
 
-2. **Configuring to Run the BasicKeyboard Service**:
+2. **Configuring to Run the MiddlemanKeyboard Service**:
 In Android Studio, go to `Run` > `Edit Configurations...` and set the `Launch Options` to `Nothing` and the `Launch` dropdown to `Nothing`. 
 This is because unlike other apps, there is no "app" to launch for a keyboard, it is simply enabled in the system settings and activated when a text field is selected.
 
-3. **Enabling and Testing the BasicKeyboard**:
+3. **Enabling and Testing the MiddlemanKeyboard**:
    - Start your emulator by selecting it in the AVD Manager and clicking on the green play button.
      - **NOTE:** Because it is a service, no app will be launched when you run the project. Instead, the keyboard will be enabled in the system settings.
    - Once the emulator is running, open the `Settings` app (you can find it by swiping up on the home screen and searching for 'Settings').
    - Navigate to `System` > `Languages & input` > `On-screen keyboard` > `Manage on-screen keyboards`.
    - Toggle on the `Hello World Keyboard`.
    - To test, open any app that allows you to type text. Click on a text field to bring up the keyboard.
-   - If the default keyboard appears, switch to the BasicKeyboard by tapping on the keyboard icon in the navigation bar and selecting 'Hello World Keyboard'.
+   - If the default keyboard appears, switch to the MiddlemanKeyboard by tapping on the keyboard icon in the navigation bar and selecting 'Hello World Keyboard'.
 
 **Note:** It's helpful to keep the README open as you go through these steps. If you encounter any difficulties, refer back to the detailed instructions provided.
 
@@ -69,7 +68,7 @@ This is because unlike other apps, there is no "app" to launch for a keyboard, i
 
 ## Customizing Your Keyboard
 ### Key Files for Customization
-- `app/src/main/java/com/example/basickeyboard/KeyboardService.kt`: Main service for keyboard logic.
+- `app/src/main/java/com/example/middlemankeyboard/KeyboardService.kt`: Main service for keyboard logic.
 - `app/src/main/res/keyboard_layout.xml`: Layout file for the keyboard UI.
 - `app/src/main/res/values/strings.xml`: Strings file for keyboard UI text.
 - `app/src/main/AndroidManifest.xml`: App declarations and configurations.

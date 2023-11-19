@@ -1,4 +1,4 @@
-package com.example.basickeyboard
+package com.example.middlemankeyboard
 
 import org.junit.Test
 

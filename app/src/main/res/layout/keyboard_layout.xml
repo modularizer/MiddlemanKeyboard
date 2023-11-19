@@ -13,6 +13,27 @@
         android:background="@android:color/darker_gray"
         android:padding="1dp"/>
 
+    <!-- non editable text Area to show actual text input -->
+    <EditText
+        android:id="@+id/typed_text_area"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:minHeight="48dp"
+    android:background="@android:color/white"
+    android:gravity="center"
+    android:inputType="text"
+    android:textSize="20sp"
+    android:hint="Input text will appear here"> <!-- Optional hint -->
+</EditText>
+
+
+    <!-- Top Bar -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/darker_gray"
+        android:padding="1dp"/>
+
     <!-- Rows will be added programmatically -->
 </LinearLayout>
 
