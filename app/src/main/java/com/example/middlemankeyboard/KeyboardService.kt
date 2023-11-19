@@ -55,16 +55,20 @@ class sPOngEbObTRaNSfOrMer : TextTransformer() {
     }
 }
 
+class NormalTransformer : TextTransformer() {
+    override fun transformText(newRawText: String, oldRawText: String?): String {
+        return newRawText
+    }
+}
+
 
 class KeyboardService : InputMethodService() {
     // Define a mapping of keys to rows
-    private val transformer = sPOngEbObTRaNSfOrMer()
+    private val transformer: TextTransformer? = sPOngEbObTRaNSfOrMer();
 
     private val emojis = "👍😎💩"
     private val lock = "\uD83D\uDD12"
-    private val pickTransformerLayout = arrayOf(
-        arrayOf("sPOngEbObTRaNSfOrMer", "normal"),
-    )
+
 
     private val abcLayout = arrayOf(
         arrayOf("#", "1", "2", "3", "4", "5", "6", "7", "8", "9", "0", " ⌫ "),
@@ -124,6 +128,7 @@ class KeyboardService : InputMethodService() {
 
 
     override fun onCreateInputView(): View {
+
         // Initialize the keyboard layout
         return makeKeyboardLayout(currentKeyboard)
     }
