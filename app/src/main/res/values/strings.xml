@@ -1,0 +1,5 @@
+<resources>
+    <string name="app_name">BasicKeyboard</string>
+    <string name="service_label">Basic Keyboard</string>
+    <string name="subtype_en_US">Basic Keyboard</string>
+</resources>
