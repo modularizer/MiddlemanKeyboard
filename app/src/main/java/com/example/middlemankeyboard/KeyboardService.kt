@@ -70,6 +70,8 @@ class KeyboardService : InputMethodService() {
 
     private var textArea: EditText? = null
 
+    private var rawText: String = ""
+
 
     override fun onCreateInputView(): View {
         // Initialize the keyboard layout
@@ -94,6 +96,7 @@ class KeyboardService : InputMethodService() {
         // get the text area from the layout, id is typed_text_area
         // Find the EditText within the inflated layout
         textArea = baseLayout.findViewById(R.id.typed_text_area) as EditText
+        initializeTextArea()
         syncTextArea()
 
         keyboard.forEach { row ->
@@ -159,7 +162,8 @@ class KeyboardService : InputMethodService() {
 
     private fun inputText(text: String) {
         val inputConnection = currentInputConnection
-        inputConnection?.commitText(text, 1)
+//        inputConnection?.commitText(text, 1)
+        rawText += text
         syncTextArea()
         if (nextKeyboard != null) {
             switchKeyboard(nextKeyboard!!)
@@ -172,25 +176,49 @@ class KeyboardService : InputMethodService() {
 
         if (selectedText.isNullOrEmpty()) {
             // No text is selected, so delete the character before the cursor
-            inputConnection?.deleteSurroundingText(1, 0)
+//            inputConnection?.deleteSurroundingText(1, 0)
+            rawText = rawText.dropLast(1)
             syncTextArea()
         } else {
             // Text is selected, so delete the selection
-            inputConnection?.commitText("", 1)
+//            inputConnection?.commitText("", 1)
+            rawText = ""
             syncTextArea()
         }
     }
 
     private fun clearText() {
         val inputConnection = currentInputConnection
-        inputConnection?.deleteSurroundingText(100, 0)
+//        inputConnection?.deleteSurroundingText(100, 0)
+        rawText = ""
         syncTextArea()
+    }
+
+    private fun initializeTextArea() {
+        val inputConnection = currentInputConnection
+        val request = ExtractedTextRequest()
+        val extractedText = inputConnection?.getExtractedText(request, 0)
+        rawText = extractedText?.text.toString()
     }
 
     private fun syncTextArea() {
         val inputConnection = currentInputConnection
-        val text = inputConnection?.getExtractedText(ExtractedTextRequest(), 100)?.text
-        textArea?.setText(text)
+        val text = transformText(rawText)
+        textArea?.setText(rawText)
+        // set the full text in the input connection to the transformed text, overwriting the original text
+        inputConnection?.setComposingText(text, 1)
+    }
+
+    private fun transformText(text: String): String {
+        // replace with randomly capitalized text
+        val lowercased = text.toLowerCase()
+        val chars = lowercased.toCharArray()
+        for (i in chars.indices) {
+            if (Math.random() < 0.5) {
+                chars[i] = chars[i].toUpperCase()
+            }
+        }
+        return String(chars)
     }
 
 }
