@@ -1,70 +1,72 @@
 package com.example.middlemankeyboard
 
 import android.inputmethodservice.InputMethodService
-import android.text.Editable
-import android.text.TextWatcher
+import android.text.InputType
+import android.text.method.ScrollingMovementMethod
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.inputmethod.ExtractedTextRequest
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.TextView
+import io.ktor.util.toUpperCasePreservingASCIIRules
+
+import kotlinx.coroutines.*
+
+// import JSONObject from org.json
+
+/* Make an abstract class for text suggestions. This will take in the input text element and the
+ * text suggestions element. It will attach a change handler to the input text element which will
+ * call the API and update the text suggestions element.
+ */
 
 
-abstract class TextTransformer {
-    public var rawText: String = ""
-    public var transformedText: String = ""
 
-    public fun reset(): String {
-        return transform("")
-    }
+data class CursorInfo(val mode: String, val startPosition: Int?, val endPosition: Int?, val selectedText: String)
 
-    public fun addText(text: String, index: Int? = null): String {
-        if (index == null) {
-            rawText += text
-        } else {
-            rawText = rawText.substring(0, index) + text + rawText.substring(index)
-        }
-        transformedText = transform(rawText)
-        return transformedText
-    }
 
-    public fun removeText(length: Int, index: Int? = null): String {
-        if (index == null) {
-            rawText = rawText.dropLast(length)
-        } else {
-            rawText = rawText.substring(0, index) + rawText.substring(index + length)
-        }
-        return transform(rawText)
-    }
 
-    public fun transform(newRawText: String): String {
-        val oldRawText = rawText
-        rawText = newRawText
-        transformedText = transformText(newRawText, oldRawText)
-        return transformedText
-    }
+abstract class TextTransformerABC {
+    private var content: String = ""
+    abstract fun setContent(text: String)
 
-    abstract fun transformText(newRawText: String, oldRawText: String? = null): String
+    abstract suspend fun  transform(): String
+
+    abstract suspend fun getWordSuggestions(): Triple<String, String, String>
 }
 
 
-class sPOngEbObTRaNSfOrMer : TextTransformer() {
-    override fun transformText(newRawText: String, oldRawText: String?): String {
-        return newRawText.map { if (Math.random() < 0.4) it.uppercaseChar() else it }.joinToString("")
+class TextTransformer : TextTransformerABC() {
+    private var content: String = ""
+
+    override public fun setContent(text: String) {
+        content = text
+    }
+
+   override suspend fun transform(): String {
+        return content
+    }
+
+    override suspend fun getWordSuggestions(): Triple<String, String, String> {
+        return Triple("word one", "word two", "word three")
     }
 }
 
-class NormalTransformer : TextTransformer() {
-    override fun transformText(newRawText: String, oldRawText: String?): String {
-        return newRawText
-    }
-}
 
 
 class KeyboardService : InputMethodService() {
+    private val serviceScope = CoroutineScope(Dispatchers.Main + SupervisorJob())
+
+    override fun onDestroy() {
+        super.onDestroy()
+        serviceScope.cancel()
+    }
+
+
     // Define a mapping of keys to rows
-    private val transformer: TextTransformer? = sPOngEbObTRaNSfOrMer();
+    private val transformer = TextTransformer()
 
     private val emojis = "👍😎💩"
     private val lock = "\uD83D\uDD12"
@@ -124,17 +126,17 @@ class KeyboardService : InputMethodService() {
     private var currentKeyboard = keyboards[currentKeyboardName]!!
     private var nextKeyboard: String? = null
 
-    private var textArea: EditText? = null
+
+    private lateinit var suggestionTextElement: TextView
+    private lateinit var wordSuggestionElements: Triple<TextView, TextView, TextView>
 
 
     override fun onCreateInputView(): View {
-
         // Initialize the keyboard layout
-        return makeKeyboardLayout(currentKeyboard)
+        return setKeyboardLayout(currentKeyboard)
     }
 
-
-    private fun switchKeyboard(keyboardName: String, temporary: Boolean = false) {
+    public fun switchKeyboard(keyboardName: String, temporary: Boolean = false) {
         if (temporary) {
             nextKeyboard = currentKeyboardName
         }else{
@@ -146,27 +148,29 @@ class KeyboardService : InputMethodService() {
 
     }
 
-    private fun makeKeyboardLayout(keyboard: Array<Array<String>>): LinearLayout {
+    private fun setKeyboardLayout(keyboard: Array<Array<String>>): LinearLayout {
         val baseLayout = layoutInflater.inflate(R.layout.keyboard_layout, null) as LinearLayout
-        // get the text area from the layout, id is typed_text_area
-        // Find the EditText within the inflated layout
-        textArea = baseLayout.findViewById(R.id.typed_text_area) as EditText
+        suggestionTextElement = baseLayout.findViewById<TextView>(R.id.suggestion_text)
+        suggestionTextElement.movementMethod = ScrollingMovementMethod.getInstance()
+        wordSuggestionElements = Triple(
+            baseLayout.findViewById<TextView>(R.id.word_suggestion_1),
+            baseLayout.findViewById<TextView>(R.id.word_suggestion_2),
+            baseLayout.findViewById<TextView>(R.id.word_suggestion_3)
+        )
 
-        // set a change handler on the text area which will set the input connection text
-        textArea?.addTextChangedListener(object : TextWatcher {
-            override fun afterTextChanged(s: Editable) {
-                setText(transformer.transform(s.toString()))
-            }
-            override fun beforeTextChanged(s: CharSequence, start: Int, count: Int, after: Int) {
-                // prevent any edits
-            }
-            override fun onTextChanged(s: CharSequence, start: Int, before: Int, count: Int) {
-                // Do nothing
-            }
-        })
-        initializeTextArea()
+        val rowLayouts = makeKeyboardLayout(keyboard)
+        // set the content of the keyboard_rows layout to the rowLayouts
+        val keyboardRows = baseLayout.findViewById<LinearLayout>(R.id.keyboard_rows)
+        keyboardRows.removeAllViews()
+        rowLayouts.forEach { rowLayout ->
+            keyboardRows.addView(rowLayout)
+        }
+        return baseLayout
+    }
 
-
+    private fun makeKeyboardLayout(keyboard: Array<Array<String>>): Array<LinearLayout> {
+        val rowLayouts = arrayOfNulls<LinearLayout>(keyboard.size)
+        var ind = 0
         keyboard.forEach { row ->
             val rowLayout = LinearLayout(this)
             rowLayout.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT)
@@ -188,9 +192,8 @@ class KeyboardService : InputMethodService() {
                         "abc" -> switchKeyboard("abc")
                         lock -> switchKeyboard(if (currentKeyboardName == lock) "abc" else lock)
                         emojis -> switchKeyboard(emojis)
-                        "→|" -> inputText('\t'.toString())
                         "⌫" -> handleBackspace()
-                        "↵" -> inputText("\n")
+                        "↵" -> handleEnter()
                         "" -> inputText(" ")
                         else -> inputText(keyLabel)
                     }
@@ -222,95 +225,183 @@ class KeyboardService : InputMethodService() {
                 rowLayout.addView(key)
             }
 
-            baseLayout.addView(rowLayout)
+            rowLayouts[ind] = rowLayout
+            ind += 1
         }
-        return baseLayout
+        return rowLayouts!! as Array<LinearLayout>
     }
 
-
     private fun inputText(text: String) {
-        if (!cursorAtEnd()){
-            return
-        }
         val inputConnection = currentInputConnection
-        val selectedText = inputConnection?.getSelectedText(0)
-        if (selectedText.isNullOrEmpty()) {
-            // add text directly to end of text area do not use transformer
-            textArea?.setText(textArea?.text.toString() + text)
-            textArea?.setSelection(textArea?.text.toString().length)
-
-
-            if (nextKeyboard != null) {
-                switchKeyboard(nextKeyboard!!)
-            }
-        }else{
-            // no support yet for deleting selected text
+        inputConnection?.commitText(text, 1)
+        afterTextChange()
+        if (nextKeyboard != null) {
+            switchKeyboard(nextKeyboard!!)
         }
+    }
 
+    private fun handleEnter() {
+        val editorInfo = currentInputEditorInfo
+        nextKeyboard = null
+
+        if (editorInfo.inputType and InputType.TYPE_TEXT_FLAG_MULTI_LINE != 0) {
+            // Multi-line text field, insert newline
+            inputText("\n")
+        } else {
+            // Single-line text field, submit text
+            submit()
+        }
     }
 
     private fun handleBackspace() {
-        if (!cursorAtEnd()){
-            return
+        nextKeyboard = null
+        val cursorInfo = getCursorInfo(true)
+
+        val inputConnection = currentInputConnection
+        val noSelection = cursorInfo.startPosition == cursorInfo.endPosition
+        if (noSelection) inputConnection?.deleteSurroundingText(1, 0) else inputConnection?.commitText("", 0)
+
+        afterTextChange()
+    }
+
+    public fun clearText() {
+        // use inputConnection to delete all text in the text field
+        nextKeyboard = null
+        val inputConnection = currentInputConnection
+        inputConnection?.deleteSurroundingText(getText().length, 0)
+
+        afterTextChange()
+    }
+
+    public fun afterTextChange() {
+        getSuggestions()
+    }
+
+    private fun getSuggestions() {
+        getWordSuggestions()
+        getFullSuggestion()
+    }
+
+    private fun getFullSuggestion() {
+        val text = getText()
+        transformer.setContent(text)
+
+        // asyncronously get the full suggestion text
+        // Start the coroutine
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                val suggestionText = transformer.transform()
+                withContext(Dispatchers.Main) {
+                    suggestionTextElement.setText(suggestionText)
+                }
+            } catch (e: Exception) {
+                Log.e("KeyboardService", "Error: ${e.message}")
+                // Handle the exception or notify the user
+            }
         }
+    }
+    private fun getWordSuggestions() {
+        val text = getText()
+        transformer.setContent(text)
+
+        // asyncronously get the word suggestions
+        // Start the coroutine
+        serviceScope.launch(Dispatchers.IO) {
+            try {
+                // Do the work in a background thread
+                val wordSuggestions = transformer.getWordSuggestions()
+                // Switch to the main thread
+                withContext(Dispatchers.Main) {
+                    // Update the UI
+                    wordSuggestionElements.first.setText(wordSuggestions.first)
+                    wordSuggestionElements.second.setText(wordSuggestions.second)
+                    wordSuggestionElements.third.setText(wordSuggestions.third)
+                }
+            } catch (e: Exception) {
+                Log.e("KeyboardService", "Error: ${e.message}")
+                // Handle the exception or notify the user
+            }
+        }
+    }
+
+    public fun getCursorInfo(backspace: Boolean = false): CursorInfo {
+        val inputConnection = currentInputConnection
+        val request = ExtractedTextRequest()
+        val extractedText = inputConnection?.getExtractedText(request, 0)
+        val startPosition = extractedText?.selectionStart
+        val endPosition = extractedText?.selectionEnd
+        val length = extractedText?.text.toString().length
+
+        val noSelection = startPosition == endPosition
+        val startCursorAtEnd = startPosition == length
+        val selectedText = getSelectedText()
+        val mode = if (backspace){
+            if (noSelection && startCursorAtEnd) "pop" else if (noSelection) "backspace" else "remove"
+        }else{
+            if (noSelection && startCursorAtEnd) "append" else if (noSelection) "insert" else "replace"
+        }
+
+        // return mode, start position, end position, and selected text as a tuple
+        return CursorInfo(mode, startPosition, endPosition, selectedText)
+    }
+
+    public fun setCursor(startPosition: Int = -1, endPosition: Int? = null) {
+        // -1 means end of text, null means no selection
+        val inputConnection = currentInputConnection
+        var start = startPosition
+        if (startPosition == -1){
+            start = getText().length
+        }
+        var end = endPosition
+        if (endPosition == -1){
+            end = getText().length
+        }
+        if (endPosition == null){
+            end = start
+        }
+        inputConnection?.setSelection(start, end!!)
+    }
+
+    public fun getSelectedText(): String {
         val inputConnection = currentInputConnection
         val selectedText = inputConnection?.getSelectedText(0)
-
-        if (selectedText.isNullOrEmpty()) {
-            // remove last character from text area do not use transformer
-            val text = textArea?.text.toString()
-            textArea?.setText(text.substring(0, text.length - 1))
-            textArea?.setSelection(textArea?.text.toString().length)
-        } else {
-            // no support yet for deleting selected text
-        }
+        return selectedText.toString()
     }
 
-    private fun clearText() {
-        if (!cursorAtEnd()){
-            return
-        }
-        val inputConnection = currentInputConnection
-        val selectedText = inputConnection?.getSelectedText(0)
-        if (selectedText.isNullOrEmpty()) {
-            textArea?.setText("")
-            textArea?.setSelection(textArea?.text.toString().length)
-        } else {
-            // no support yet for deleting selected text
-        }
-    }
-
-    private fun initializeTextArea() {
-        val initialRawText = getText()
-        textArea?.setText(initialRawText)
-        textArea?.setSelection(textArea?.text.toString().length)
-    }
-
-    private fun getText(): String {
+    public fun getText(): String {
         val inputConnection = currentInputConnection
         val request = ExtractedTextRequest()
         val extractedText = inputConnection?.getExtractedText(request, 0)
         return extractedText?.text.toString()
     }
 
-    private fun setText(text: String) {
+    public fun setText(text: String, cursorPosition: Int = -1, endPosition: Int? = null) {
         val inputConnection = currentInputConnection
-        inputConnection?.setComposingText(text, 1)
-    }
+        inputConnection?.beginBatchEdit()
 
-    private fun cursorAtEnd(): Boolean {
-        val inputConnection = currentInputConnection
-        val request = ExtractedTextRequest()
-        val extractedText = inputConnection?.getExtractedText(request, 0)
-        // get true if cursor is at end of text AND there is no selected text
-        val atEnd = extractedText?.selectionStart == extractedText?.selectionEnd && extractedText?.selectionStart == extractedText?.text.toString().length
+        // Move the cursor to the start of the text
+        inputConnection?.setSelection(0, 0)
 
-        if (!atEnd){
-            // move cursor to end
-            inputConnection?.setSelection(extractedText?.text.toString().length, extractedText?.text.toString().length)
+        // Get the total length of the current text
+        val extractedText = inputConnection?.getExtractedText(ExtractedTextRequest(), 0)
+        val length = extractedText?.text?.length ?: 0
+
+        // Delete the entire text
+        inputConnection?.deleteSurroundingText(0, length)
+
+        // Insert the new text
+        inputConnection?.commitText(text, 1)
+
+        if (cursorPosition != -1){
+            setCursor(cursorPosition, endPosition)
         }
-        return atEnd
+
+        inputConnection?.endBatchEdit()
     }
 
+    public fun submit() {
+        // Implement logic to submit the text
+        currentInputConnection?.performEditorAction(1)
+    }
 
 }
